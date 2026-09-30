@@ -1,0 +1,13 @@
+{
+  "connection": "udpin:0.0.0.0:14540",
+  "expected_system_id": 1,
+  "heartbeat_timeout_s": 5.0,
+  "read_poll_s": 0.02,
+  "ai_enable_rc_channel": 0,
+  "ai_enable_low_us": 1300,
+  "ai_enable_high_us": 1700,
+  "vision_udp_host": "127.0.0.1",
+  "vision_udp_port": 5800,
+  "control_enabled": true,
+  "allow_serial_control": false
+}

@@ -1,0 +1,20 @@
+{
+  "command_hz": 20.0,
+  "prestream_s": 1.0,
+  "offboard_start_timeout_s": 2.0,
+  "telemetry_stale_s": 0.30,
+  "frame_stale_s": 0.25,
+  "track_stale_s": 0.30,
+  "guidance_stale_s": 0.30,
+  "lost_exit_s": 0.50,
+  "command_gap_abort_s": 0.15,
+  "max_yaw_rate_deg_s": 15.0,
+  "max_yaw_accel_deg_s2": 45.0,
+  "max_translation_m_s": 0.0,
+  "max_actual_ground_speed_m_s": 1.0,
+  "soft_fence_radius_m": 15.0,
+  "soft_fence_height_m": 10.0,
+  "require_global_position": true,
+  "require_home_position": true,
+  "required_entry_mode": "LOITER"
+}

@@ -1,0 +1,40 @@
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+*.bak
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.tmp_pytest/
+pytest-cache-files-*/
+.venv/
+venv/
+
+# ---- Runtime output ----
+logs/
+test_artifacts/
+*.ulg
+*.tlog
+*.log
+
+# ---- Local-only folders and files ----
+Backup/
+Log/
+Ref/
+MCU/
+.tools/
+.claude/
+.codex/
+Detect/HANDOFF_*.md
+Detect/bench_synthetic.csv
+
+# ---- Model weights (export locally, see Detect/README.md) ----
+*_openvino_model/
+*.pt
+*.onnx

@@ -1,0 +1,16 @@
+# PX4 parameter profile: slow, low-altitude optical-flow hover test
+#
+# Import this file with QGroundControl Parameters > Tools > Load from file.
+# It changes only motion limits; EKF2 optical-flow and GPS-disable parameters
+# remain in the vehicle configuration.
+#
+# Vehicle-Id Component-Id Name Value Type
+1	1	MPC_VEL_MANUAL	0.8	9
+1	1	MPC_XY_VEL_MAX	1	9
+1	1	MPC_ACC_HOR	2	9
+1	1	MPC_JERK_MAX	2	9
+1	1	MPC_TILTMAX_AIR	30	9
+1	1	MPC_Z_VEL_MAX_UP	0.5	9
+1	1	MPC_Z_VEL_MAX_DN	0.5	9
+1	1	MPC_TKO_SPEED	1	9
+1	1	MPC_LAND_SPEED	0.6	9

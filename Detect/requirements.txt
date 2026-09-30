@@ -1,0 +1,15 @@
+# opencv-python-headless: du dung cho toan bo follow/ - khong noi nao goi
+# ham GUI (imshow/waitKey/...), chi ve len buffer anh roi encode JPEG cho
+# web. Ban headless khong can libGL/GTK nen chay duoc tren UP7000 (khong
+# desktop). Neu may da lo cai ban day du (opencv-python) thi phai go no
+# truoc, vi hai goi cung cung cap module "cv2" va xung dot nhau:
+#   pip3 uninstall opencv-python -y
+#   pip3 install opencv-python-headless
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+openvino>=2024.0.0
+pymavlink>=2.4.40
+pyserial>=3.5
+
+# chi can khi chay test (tests/ khong can OpenVINO, khong can phan cung)
+pytest>=7.0.0
