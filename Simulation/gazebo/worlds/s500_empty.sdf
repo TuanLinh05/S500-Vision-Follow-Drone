@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <world name="s500_empty">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <gravity>0 0 -9.80665</gravity>
+    <atmosphere type="adiabatic"/>
+    <!-- Required by the Gazebo NavSat sensor so PX4 can establish a GPS origin. -->
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>10.772100</latitude_deg>
+      <longitude_deg>106.657900</longitude_deg>
+      <elevation>10</elevation>
+    </spherical_coordinates>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu"/>
+    <plugin filename="gz-sim-navsat-system" name="gz::sim::systems::NavSat"/>
+    <plugin filename="gz-sim-air-pressure-system" name="gz::sim::systems::AirPressure"/>
+    <plugin filename="gz-sim-magnetometer-system" name="gz::sim::systems::Magnetometer"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre</render_engine>
+    </plugin>
+    <plugin filename="libOpticalFlowSystem.so" name="custom::OpticalFlowSystem"/>
+
+    <!-- Start close enough to inspect the detailed S500 CAD frame. -->
+    <gui fullscreen="0">
+      <camera name="user_camera">
+        <pose>1.20 -1.20 0.85 0 0.33 2.356194</pose>
+      </camera>
+    </gui>
+
+    <light name="sun" type="directional">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 20 0 0 0</pose>
+      <diffuse>0.95 0.95 0.95 1</diffuse>
+      <specular>0.25 0.25 0.25 1</specular>
+      <direction>-0.4 0.2 -1.0</direction>
+    </light>
+
+    <model name="ground">
+      <static>true</static>
+      <link name="ground_link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <surface><friction><ode><mu>0.9</mu><mu2>0.9</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>100 100</size></plane></geometry>
+          <material><ambient>0.16 0.19 0.16 1</ambient><diffuse>0.25 0.30 0.25 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Visible high-contrast target gives the simulated MTF-01 camera detail to track. -->
+    <model name="flow_target">
+      <static>true</static>
+      <link name="target_link">
+        <visual name="tile_0"><pose>-0.48 -0.48 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_1"><pose>-0.48 0 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_2"><pose>-0.48 0.48 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_3"><pose>-0.24 -0.24 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_4"><pose>-0.24 0.24 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_5"><pose>0 -0.48 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_6"><pose>0 0 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_7"><pose>0 0.48 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_8"><pose>0.24 -0.24 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_9"><pose>0.24 0.24 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_10"><pose>0.48 -0.48 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_11"><pose>0.48 0 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+        <visual name="tile_12"><pose>0.48 0.48 0.002 0 0 0</pose><cast_shadows>false</cast_shadows><geometry><box><size>0.24 0.24 0.004</size></box></geometry><material><ambient>0.015 0.015 0.015 1</ambient><diffuse>0.015 0.015 0.015 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <include>
+      <uri>model://s500_quad_x</uri>
+      <name>s500_quad_x</name>
+      <pose>0 0 0.310 0 0 0</pose>
+    </include>
+  </world>
+</sdf>

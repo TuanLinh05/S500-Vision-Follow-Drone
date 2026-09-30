@@ -1,0 +1,13 @@
+* text=auto
+# Shell scripts and services run on Linux (WSL / UP 7000): always LF
+*.sh text eol=lf
+*.py text eol=lf
+*.service text eol=lf
+*.params text eol=lf
+# Binary CAD / images
+*.stl binary
+*.stp binary
+*.igs binary
+*.ipt binary
+*.JPG binary
+*.jpg binary

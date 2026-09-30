@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "s500-companion"
+version = "0.1.0"
+description = "Fail-safe USB MAVLink companion stack for the S500/Pixhawk 6C"
+requires-python = ">=3.10"
+dependencies = [
+  "pymavlink>=2.4.41,<3",
+  "pyserial>=3.5,<4",
+]
+
+[project.scripts]
+s500-companion = "s500_companion.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

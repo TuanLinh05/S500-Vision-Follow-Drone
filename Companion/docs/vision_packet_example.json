@@ -1,0 +1,18 @@
+{
+  "schema": "s500.vision.v1",
+  "sequence": 1234,
+  "frame_ts": 92345.100,
+  "track_ts": 92345.140,
+  "guidance_ts": 92345.145,
+  "track_id": 7,
+  "track_state": "TRACKED",
+  "confidence": 0.91,
+  "camera_ok": true,
+  "detector_ok": true,
+  "tracker_ok": true,
+  "vx_body_m_s": 0.0,
+  "vy_body_m_s": 0.0,
+  "vz_body_m_s": 0.0,
+  "yaw_rate_deg_s": 5.0
+}
+
