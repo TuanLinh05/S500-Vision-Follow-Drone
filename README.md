@@ -66,7 +66,6 @@ The repository also contains a telemetry/safety companion package and a **Gazebo
 ├── Companion/               # s500-companion: telemetry, safety supervisor, SITL yaw runner (31 tests)
 ├── Simulation/gazebo/       # S500 Gazebo model + world, PX4 SITL launchers (WSL)
 ├── Plan/                    # Design plans, reviews, benchmark requirements (Vietnamese)
-├── 3D model/                # S500 frame CAD (STEP / IGES / Inventor) used for the Gazebo mesh
 └── OpticalFlow_Hover_Test.params   # PX4 param profile: slow, low-altitude optical-flow hover
 ```
 
@@ -123,7 +122,7 @@ Home is set to **HCM University of Technology, 268 Lý Thường Kiệt, Distric
 ## 📚 Credits
 
 - [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot), [pymavlink](https://github.com/ArduPilot/pymavlink), [OpenVINO](https://github.com/openvinotoolkit/openvino), Ultralytics YOLO, ByteTrack.
-- `3D model/` contains a third-party S500 frame CAD assembly, used only for the Gazebo visual mesh.
+- The S500 visual mesh (`Simulation/gazebo/models/s500_quad_x/meshes/s500_frame_full.stl`) was exported from a third-party S500 frame CAD assembly, which is not included in this repository.
 
 ---
 

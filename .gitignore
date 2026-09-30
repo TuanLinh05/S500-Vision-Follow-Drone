@@ -38,3 +38,6 @@ Detect/bench_synthetic.csv
 *_openvino_model/
 *.pt
 *.onnx
+
+# ---- Third-party CAD source (kept locally; Gazebo uses the exported .stl) ----
+3D model/
