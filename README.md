@@ -1,172 +1,386 @@
-# 🎯 S500 Vision Follow Drone
+# S500 Vision Follow Drone
 
-![PX4](https://img.shields.io/badge/PX4-v1.17-0B3D91)
-![Pixhawk](https://img.shields.io/badge/FC-Pixhawk%206C-455A64)
-![Companion](https://img.shields.io/badge/Companion-UP%207000-6A1B9A)
-![OpenVINO](https://img.shields.io/badge/Vision-YOLO%20%2B%20OpenVINO-0071C5)
-![Gazebo](https://img.shields.io/badge/Sim-Gazebo%20%2B%20PX4%20SITL-F58113)
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-217%20passing-2E7D32)
+**Camera-based person tracking and yaw-only control for an S500 quadcopter.**
 
-<a id="english"></a>**🇬🇧 English** · [🇻🇳 Tiếng Việt](#tieng-viet)
+Python 3.10+ · YOLO / OpenVINO · MAVLink / PX4 · UP 7000 / Pixhawk 6C · Gazebo
 
-An **S500 quadcopter** that detects a selected person with an onboard camera and **rotates (yaw) to keep them in view**.
-A **UP 7000** companion computer runs YOLO person detection with **OpenVINO**, tracks the chosen target, and sends yaw-only setpoints to a **Pixhawk 6C / PX4** over MAVLink Offboard. Every step is wrapped in independent safety layers.
-The repository also contains a telemetry/safety companion package and a **Gazebo + PX4 SITL** model of the S500 for testing without hardware.
+[English](#english) | [Tiếng Việt](#tieng-viet)
 
-> [!WARNING]
-> The software **never arms and never takes off by itself**, and controls **only the yaw axis**. The pilot must take off and hover in Position mode before enabling the AI.
-> The Position/RTL switch on the RC transmitter is always the **last safety layer**. Test with propellers removed first.
+![Source-derived preview of the S500 frame mesh](docs/images/s500-model-preview.png)
 
----
+*Source-derived frame preview rendered from the committed S500 STL mesh, with illustrative materials and lighting.*
 
-## ✨ Highlights
+<a id="english"></a>
 
-- **Person detection & tracking:** OpenVINO YOLO with pre-filtering, GMC + ByteTrack, and HSV upper-body appearance matching to keep the selected person.
-- **Yaw-only follow control:** a pure `YawController` (no I/O) with ramp, deadzone, feed-forward and rate clamp. Camera mounting rotation (`--cam-rot`) and FOV (`--hfov` / `--fx-px`) are compensated.
-- **9 independent anti-flyaway layers:** TX watchdog, loop watchdog with emergency stream-off, soft geofence, pilot stick detection, command audit (commanded vs actual yaw rate), engage time limit, NaN/clamp guard, identity confirmation, and EKF-reset detection.
-- **Preflight gates:** refuses to ENGAGE unless armed, position is fresh, no failsafe, RC dead-man is on, battery is OK, a target is selected and the drone is inside the fence. It also detects RC dead-man channel conflicts with PX4 `RC_MAP_*`.
-- **Web UI with token + hold-to-engage**, and CSV/video logging of every flight for post-flight review.
-- **Companion package (`s500-companion`):** USB Pixhawk discovery, read-only MAVLink telemetry recorder and validator, parameter audit, safety supervisor / flight guard, and a disarmed-only mode-switch test on the real Pixhawk.
-- **Gazebo S500 model:** CAD-based visual mesh, MTF-01 optical-flow camera and rangefinder, IMU/GPS/baro/mag, attached to PX4 SITL (airframe 4001).
-- **217 automated tests** (186 Detect + 31 Companion), none of which need hardware.
+## English
 
-## 🔧 Hardware
+This project keeps a selected person in the camera's view by rotating the drone around its yaw axis. The vision application detects people with YOLO through OpenVINO, tracks the selected target, and sends gated MAVLink Offboard setpoints to PX4.
 
-| Block | Part |
+The current follow profile holds position while changing yaw. It does not implement distance-following, autonomous pursuit, or obstacle avoidance. The repository also includes a separate telemetry and safety companion package, a Gazebo S500 model, and Vietnamese engineering plans.
+
+> [!IMPORTANT]
+> `Detect/follow.app` and the Companion SITL yaw runner do not arm or take off automatically. Some helpers in `Detect/tools/`, including `sitl_arm.py` and `sitl_drive.py`, **do issue arm commands** and are intended for simulation. Review each tool before running it.
+>
+> Real-hardware control is locked by default in the Companion configuration. Simulation, unit tests, and a rendered model do not establish readiness for hardware flight.
+
+### Features and architecture
+
+| Area | Implementation |
 |---|---|
-| Frame | S500 |
-| Flight controller | Pixhawk 6C, PX4 v1.17 |
-| Companion computer | UP 7000 (32 GB / 4 GB) |
-| Camera | Rapoo C280 (USB) |
+| Detection | OpenVINO inference, person-class filtering, confidence and bounding-box checks |
+| Tracking | Camera-motion compensation, in-repo ByteTrack-style tracker, selected-target lock, HSV appearance matching |
+| Follow control | Yaw controller with deadzone, rate and slew limits, ramp and optional feed-forward |
+| Operator interface | Local web interface, token authentication, live MJPEG view, target selection and hold-to-engage |
+| Safeguards | Freshness checks, RC dead-man, pilot-stick override, soft fence, watchdogs, command audit and EKF-reset detection |
+| Logging | Detect CSV and optional video; Companion telemetry CSV/JSONL and validation reports |
+| Companion | USB discovery, read-only telemetry, parameter audit, safety supervisor, shadow mode and gated SITL yaw test |
+| Simulation | CAD-derived visual mesh, PX4 Gazebo bridge, optical-flow camera, rangefinder and navigation sensors |
+
+![Vision, MAVLink control and companion architecture](docs/images/vision-control-architecture.svg)
+
+*Architecture derived from the source modules. Detect sends MAVLink directly to PX4. Companion is a separate implementation with a local UDP vision-packet contract; connecting a detector to that contract requires an adapter.*
+
+### Documented hardware platform
+
+| Component | Repository reference |
+|---|---|
+| Airframe | S500 quadcopter |
+| Flight controller | Holybro Pixhawk 6C; project documentation targets PX4 v1.17 |
+| Companion computer | UP 7000, 4 GB RAM / 32 GB storage |
+| Vision camera | Rapoo C280 USB camera |
 | Motors | SunnySky X2216 950 kV |
-| RC | FlySky FS-i6 + FS-iA6B |
-| Power | PM07, Ovonic 4S 6200 mAh |
-| Optical flow | MTF-01 (flow + rangefinder) |
+| Radio control | FlySky FS-i6 / FS-iA6B |
+| Power | PM07 power module, Ovonic 4S 6200 mAh battery |
+| Optical flow | MTF-01 flow and rangefinder module |
 
-## 🏗️ Architecture
+The Gazebo model uses an estimated 1.68 kg mass and provisional DJI 9450 / 940 kV propulsion assumptions. These are not calibrated to the documented motors and must be reviewed before interpreting flight behavior.
 
-```text
-┌──────────────┐  frames  ┌─────────────────────────── UP 7000 ───────────────────────────┐
-│ USB camera   │ ───────▶ │ detect (YOLO/OpenVINO) → track (ByteTrack) → target lock      │
-└──────────────┘          │        → YawController → SafetyGate (9 layers) → SetpointStreamer │
-                          │ Web UI (token, hold-to-engage)  ·  CSV / video logging        │
-                          └───────────────────────────────┬───────────────────────────────┘
-                                                          │ MAVLink (USB), yaw-only Offboard
-                                                          ▼
-┌──────────────┐   RC (Position/RTL, dead-man)   ┌──────────────────────┐
-│ FS-i6 + iA6B │ ──────────────────────────────▶ │ Pixhawk 6C · PX4     │ ──▶ S500 motors
-└──────────────┘                                 └──────────────────────┘
-```
-
-## 📂 Repository structure
+### Repository layout
 
 ```text
-├── Detect/                  # Person-follow app v2.4 (follow/ package, 186 tests, SITL/bench tools)
-├── Companion/               # s500-companion: telemetry, safety supervisor, SITL yaw runner (31 tests)
-├── Simulation/gazebo/       # S500 Gazebo model + world, PX4 SITL launchers (WSL)
-├── Plan/                    # Design plans, reviews, benchmark requirements (Vietnamese)
-└── OpticalFlow_Hover_Test.params   # PX4 param profile: slow, low-altitude optical-flow hover
+S500-Vision-Follow-Drone/
+├── Detect/                        # Direct vision-follow app
+│   ├── follow/                    # Camera, detection, tracking, yaw, safety, web UI
+│   ├── tests/                     # Unit and simulated-link tests
+│   └── tools/                     # Diagnostics and bench/SITL scenarios
+├── Companion/                     # Separate s500-companion Python package
+│   ├── src/s500_companion/         # Telemetry, guards, transports and validators
+│   ├── config/                    # Hardware, SITL and safety defaults
+│   ├── deploy/                    # UP 7000 setup and USB recording scripts
+│   └── tests/                     # Software tests
+├── Simulation/gazebo/             # Model, world and WSL launchers
+├── Plan/                          # Engineering and benchmark plans
+├── docs/images/                   # README illustrations
+└── OpticalFlow_Hover_Test.params   # PX4 parameter profile to review before use
 ```
 
-## 🚀 Getting started
+### 1. Vision dry run
 
-### Detect – person follow
+Use Python 3.10 or newer. These commands use a Linux/WSL shell; a USB camera must be available to the environment running Python.
 
 ```bash
-cd Detect
-pip install -r requirements.txt
+git clone https://github.com/TuanLinh05/S500-Vision-Follow-Drone.git
+cd S500-Vision-Follow-Drone/Detect
 
-# Dry run: camera + detection only, no MAVLink, no control
-python -m follow.app --camera 0 --model yolo26n_int8_openvino_model
-
-# PX4 SITL
-python -m follow.app --mavlink udp:127.0.0.1:14540 --enable-control --rc-chan 7
-
-# Tests (no hardware, no OpenVINO needed)
-python -m pytest tests/ -v
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-The OpenVINO model folder is not included; export it locally with Ultralytics. Real-flight command lines, all parameters, the CSV columns to review after each flight and the camera-rotation notes are in [`Detect/README.md`](Detect/README.md).
+**Prepare the model first.** Weights and exported OpenVINO folders are excluded from Git. Export a compatible YOLO model locally, then pass its `.xml` path or export directory to `--model`. The loader requires:
 
-### Companion – telemetry & safety
+- OpenVINO IR topology `.xml` and corresponding `.bin` weights. See the [OpenVINO IR format documentation](https://docs.openvino.ai/2026/documentation/openvino-ir-format.html).
+- NMS-free output shaped `[batch, N, 6]`, interpreted as `[x1, y1, x2, y2, confidence, class_id]`.
+- Person class ID `0`, and input size matching `--imgsz` (default `416`).
+
+The default directory `yolo26n_int8_openvino_model` is **not included**. Raw YOLO exports with a different output shape are rejected; renaming a folder does not make an export compatible. Ultralytics/export and INT8 calibration dependencies are not included in `Detect/requirements.txt`.
+
+Once that model exists in `Detect/`, run:
+
+```bash
+python -m follow.app \
+  --camera 0 \
+  --model yolo26n_int8_openvino_model \
+  --device CPU \
+  --imgsz 416
+```
+
+This command has no MAVLink connection or enabled flight control. Open the tokenized URL printed in the terminal, normally `http://127.0.0.1:8080/?t=<token>`, to view the camera and select a person. CPU is explicit for an initial run; the application's default device is GPU.
+
+Verify the upright image and yaw direction before control tests. `--cam-rot` supports `0/90/180/270`; recheck the effective horizontal FOV with `--hfov`, or use calibrated `--fx-px`. Detailed flags and CSV fields are documented in [Detect/README.md](Detect/README.md).
+
+### 2. Read-only Pixhawk telemetry
+
+The documented UP 7000 deployment uses Ubuntu 22.04 and Python 3.10+. From the repository root:
 
 ```bash
 cd Companion
-bash deploy/install_up7000.sh           # on the UP 7000 (Ubuntu 22.04, Python 3.10+)
-. .venv/bin/activate
+bash deploy/install_up7000.sh
+source .venv/bin/activate
+
 s500-companion discover
-s500-companion probe --duration 10      # read-only MAVLink check
+s500-companion probe --duration 10
+```
+
+`probe` listens to MAVLink without sending arm, mode or setpoint commands. For USB permission issues, follow the `dialout` instructions in [Companion/README.md](Companion/README.md).
+
+The hardware defaults are `connection="auto"`, `control_enabled=false`, `allow_serial_control=false` and `ai_enable_rc_channel=0`. These Companion settings do not configure or authorize the separate Detect application.
+
+To inspect the supervisor without creating a control transport:
+
+```bash
+python tools/shadow_run.py --duration 600 --output logs/shadow.jsonl
+```
+
+Shadow mode receives vision packets on `127.0.0.1:5800`. Without a compatible packet producer, it records missing/stale vision rather than demonstrating end-to-end detection.
+
+### 3. Gazebo and PX4 SITL in WSL
+
+Install Gazebo Harmonic (`gz`) and build compatible PX4 SITL separately. The launchers require `build/px4_sitl_default/bin/px4` and the built `libOpticalFlowSystem.so`; neither PX4 nor Gazebo is bundled in this repository.
+
+Build using `make px4_sitl` from a PX4 checkout in the Linux filesystem. Both launchers default to `$HOME/PX4-Autopilot`; set `PX4_AUTOPILOT_HOME` if the checkout is elsewhere. From the S500 repository root, use **two terminals**:
+
+```bash
+# Terminal 1: Gazebo world and S500 model
+export PX4_AUTOPILOT_HOME="$HOME/PX4-Autopilot"
+bash Simulation/gazebo/run_s500_gazebo_wsl.sh
+```
+
+```bash
+# Terminal 2: attach PX4 to the existing model
+export PX4_AUTOPILOT_HOME="$HOME/PX4-Autopilot"
+bash Simulation/gazebo/run_s500_px4_sitl_wsl.sh
+```
+
+The launchers use world `s500_empty`, model `s500_quad_x` and PX4 airframe `4001`. They start without an automatic arm command. The world origin is `10.772100, 106.657900`, with elevation `10 m`.
+
+The Gazebo launcher defaults to OGRE1 for the documented WSLg setup. Use `S500_GZ_RENDER_ENGINE=ogre2` only where that renderer works. Under WSL2 NAT, the documented Windows QGroundControl link uses local UDP `14550` and server `<WSL-IP>:18570`. See [Simulation/gazebo/README.md](Simulation/gazebo/README.md) for model and connection details.
+
+To connect Detect to SITL **without enabling its control output**, run from `Detect/` with its environment and model ready:
+
+```bash
+python -m follow.app \
+  --model yolo26n_int8_openvino_model \
+  --device CPU \
+  --mavlink udp:127.0.0.1:14540
+```
+
+PX4 and Python must share a network environment, or UDP routing must be configured explicitly. Do not run both applications against the same listening UDP port or serial device simultaneously.
+
+### Validation and control boundaries
+
+![Validation workflow from dry run to reviewed hardware testing](docs/images/validation-workflow.svg)
+
+*Workflow based on repository test and deployment plans. These are validation steps, not completed flight milestones.*
+
+After installing each package's dependencies, run tests in the corresponding environment:
+
+```bash
+# From Detect/
+python -m pytest tests/ -v
+
+# From Companion/
 python -m unittest discover -s tests -v
 ```
 
-Control on the real Pixhawk is locked by default (`control_enabled=false`, `allow_serial_control=false`). The step-by-step unlock sequence is in [`Companion/README.md`](Companion/README.md).
+The suites include target loss, stale data, yaw limiting, fences, watchdogs, operator consent and control authorization. Run the tests for your checkout and retain the results.
 
-### Simulation – Gazebo + PX4 SITL (WSL)
+Active Detect control requires explicit `--enable-control`, an appropriate RC dead-man channel and a positive `--batt-min`, plus valid telemetry, target selection and operator engagement. A channel such as `7` is not universally available: it must be independent of PX4 `RC_MAP_*` functions. Flags labeled SITL/bench bypass checks only for those environments.
 
-```bash
-bash Simulation/gazebo/run_s500_gazebo_wsl.sh     # terminal 1: Gazebo with the S500 model
-bash Simulation/gazebo/run_s500_px4_sitl_wsl.sh   # terminal 2: PX4 SITL (airframe 4001), stays disarmed
-```
+| Condition | Implemented response / dependency |
+|---|---|
+| Target lost, stale or requiring identity confirmation | Block yaw; require confirmation when target identity is uncertain |
+| RC dead-man released, pilot stick input or fatal gate failure | Disengage and invoke the configured exit behavior |
+| Main-loop stall | Independent watchdog can request emergency stream-off |
+| Invalid or excessive yaw command | Reject non-finite values and clamp output |
+| Fence breach, stale position or EKF reset during engagement | Block/disengage according to the gate; reset detection depends on received `ODOMETRY` |
+| Setpoint stream loss | PX4's separately configured Offboard-loss behavior must handle the aircraft |
 
-Home is set to **HCM University of Technology, 268 Lý Thường Kiệt, District 10, Ho Chi Minh City** (`10.772100, 106.657900`). Details and QGroundControl setup: [`Simulation/gazebo/README.md`](Simulation/gazebo/README.md).
+For hardware tests, follow [Companion's staged procedure](Companion/README.md): read-only USB recording, software tests, SITL fault tests, bench testing with propellers removed, shadow flights and review before enabling yaw control. Independently verify PX4 Offboard-loss, hard geofence and RC Position/RTL override. Review the parameter file before applying it to a vehicle.
 
-## 🛡️ Before flying the real drone
+### Troubleshooting
 
-1. Unit tests pass on the actual UP 7000.
-2. SITL fault tests are logged (process kill, stream loss, stale target, RC dead-man).
-3. Bench test on the real Pixhawk with **propellers removed**: Position / RTL / RC override / geofence confirmed.
-4. PX4 Offboard-loss (`COM_OF_LOSS_T`), hard geofence (`GF_*`) and the RC Position/RTL switch are configured. These three layers are outside this code and are mandatory.
-5. First flights: `--max-yaw-rate 15`, small fence, short `--max-engage-s`.
+| Symptom | Check |
+|---|---|
+| No `.xml` found | Export the model locally and pass its actual file/directory to `--model` |
+| Model output rejected | Match the NMS-free `[batch, N, 6]` contract and input size |
+| GPU unavailable | Start with `--device CPU`; configure the target's OpenVINO GPU runtime separately |
+| Camera unavailable or upside down | Check Linux/WSL camera access, index, `--source` and `--cam-rot` |
+| No MAVLink heartbeat | Check PX4, endpoint and whether another process owns the port/device |
+| ENGAGE refused | Inspect web status and CSV `block`; check RC mapping, battery threshold, target and telemetry age |
+| Gazebo fails to launch | Check `gz`, `PX4_AUTOPILOT_HOME`, the optical-flow plugin and renderer |
 
-## 📚 Credits
+### Documentation and credits
 
-- [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot), [pymavlink](https://github.com/ArduPilot/pymavlink), [OpenVINO](https://github.com/openvinotoolkit/openvino), Ultralytics YOLO, ByteTrack.
-- The S500 visual mesh (`Simulation/gazebo/models/s500_quad_x/meshes/s500_frame_full.stl`) was exported from a third-party S500 frame CAD assembly, which is not included in this repository.
+| Document | Purpose |
+|---|---|
+| [Detect README](Detect/README.md) | Flags, camera mounting, safeguards and CSV interpretation |
+| [Companion README](Companion/README.md) | USB checks, shadow mode, gated tests and deployment stages |
+| [Gazebo README](Simulation/gazebo/README.md) | Model assumptions, WSL and QGroundControl |
+| [Follow/control plan](Plan/DroneFollowPX4.md) | Design review and test scenarios |
+| [Vision implementation plan](Plan/ke_hoach_trien_khai_xu_ly_anh_s500.md) | Detection pipeline and staged integration |
+| [Benchmark requirements](Plan/yeu_cau_benchmark_detect_nguoi_up7000.md) | Measurements and report format |
+
+Built around [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot), [pymavlink](https://github.com/ArduPilot/pymavlink), [OpenVINO](https://github.com/openvinotoolkit/openvino), YOLO and ByteTrack-inspired tracking.
+
+The mesh `Simulation/gazebo/models/s500_quad_x/meshes/s500_frame_full.stl` was exported from a **third-party S500 CAD assembly**. The original CAD is not included. Inspection/export scripts reference the author's local `/mnt/d/Intern_Data/S500 Drone` workspace; regenerating the mesh requires adapted paths, the original CAD and CadQuery. Regeneration is unnecessary to use the committed mesh.
 
 ---
 
 <a id="tieng-viet"></a>
 
-## 🇻🇳 Tiếng Việt
+## Tiếng Việt
 
-[🇬🇧 English](#english) · **🇻🇳 Tiếng Việt**
+[English](#english) | **Tiếng Việt**
 
-Drone **S500** nhận diện một người được chọn qua camera và **xoay (yaw) để luôn giữ người đó trong khung hình**.
-Máy tính đồng hành **UP 7000** chạy nhận diện người bằng YOLO trên **OpenVINO**, bám mục tiêu đã chọn và gửi setpoint chỉ-yaw tới **Pixhawk 6C / PX4** qua MAVLink Offboard. Mọi bước đều được bọc bởi các lớp an toàn độc lập.
-Repo còn có gói companion cho telemetry/an toàn và mô hình **Gazebo + PX4 SITL** của S500 để thử nghiệm không cần phần cứng.
+Dự án giúp drone S500 **xoay quanh trục yaw để giữ người được chọn trong khung hình**. Máy tính đồng hành chạy YOLO trên OpenVINO, bám mục tiêu và gửi setpoint MAVLink Offboard tới PX4 sau khi các điều kiện điều khiển được đáp ứng.
 
-> [!WARNING]
-> Phần mềm **không tự arm, không tự cất cánh**, chỉ điều khiển **trục yaw**. Phi công phải cất cánh và hover Position trước khi bật AI.
-> Công tắc Position/RTL trên tay điều khiển luôn là **lớp an toàn cuối cùng**. Luôn thử với cánh quạt đã tháo trước.
+Profile hiện tại giữ vị trí và thay đổi yaw. Chưa có chức năng tự bay theo khoảng cách, đuổi theo người hoặc tránh vật cản. Repo còn có gói Companion riêng cho telemetry/safety supervisor, mô hình Gazebo và tài liệu thiết kế bằng tiếng Việt.
 
-### ✨ Điểm nổi bật
+*Ảnh đầu README được dựng từ mesh khung S500 trong repo với vật liệu và ánh sáng minh họa. Hai sơ đồ mô tả kiến trúc và quy trình kiểm thử theo mã nguồn.*
 
-- **Nhận diện và bám người:** YOLO trên OpenVINO có lọc trước, GMC + ByteTrack, so khớp ngoại hình thân trên bằng histogram HSV để giữ đúng người đã chọn.
-- **Điều khiển chỉ-yaw:** `YawController` thuần (không I/O) có ramp, deadzone, feed-forward và giới hạn tốc độ. Có bù camera lắp xoay (`--cam-rot`) và góc nhìn (`--hfov` / `--fx-px`).
-- **9 lớp chống bay mất kiểm soát độc lập:** TX watchdog, loop watchdog kèm cắt stream khẩn cấp, hàng rào mềm, phát hiện phi công đánh stick, đối chiếu lệnh yaw với yaw thật, giới hạn thời gian engage, chặn NaN/clamp, xác nhận danh tính mục tiêu, phát hiện EKF reset.
-- **Tiền kiểm tra:** từ chối ENGAGE nếu chưa arm, vị trí cũ, PX4 báo failsafe, chưa bật RC dead-man, pin thấp, chưa chọn mục tiêu hoặc đã ra ngoài hàng rào. Có kiểm tra kênh RC dead-man trùng với `RC_MAP_*` của PX4.
-- **Web UI có token và giữ-để-engage**, ghi CSV/video mỗi chuyến bay để xem lại.
-- **Gói companion (`s500-companion`):** tự tìm Pixhawk qua USB, ghi và kiểm tra telemetry MAVLink chỉ-đọc, audit parameter, safety supervisor / flight guard, test đổi mode trên Pixhawk thật khi disarmed.
-- **Mô hình Gazebo S500:** mesh lấy từ CAD, camera optical-flow và rangefinder MTF-01, IMU/GPS/baro/mag, gắn với PX4 SITL (airframe 4001).
-- **217 test tự động** (186 Detect + 31 Companion), không cần phần cứng.
+> [!IMPORTANT]
+> `Detect/follow.app` và runner yaw SITL của Companion không tự arm hoặc cất cánh. Tuy nhiên, tiện ích `sitl_arm.py` và `sitl_drive.py` trong `Detect/tools/` **có gửi lệnh arm** và được viết cho mô phỏng. Cần đọc đúng công cụ trước khi chạy.
+>
+> Điều khiển phần cứng thật bị khóa mặc định trong Companion. Unit test, mô phỏng và ảnh mô hình không xác nhận drone đã đủ điều kiện bay thật.
 
-Bảng phần cứng, sơ đồ kiến trúc và cấu trúc thư mục: xem phần tiếng Anh ở trên.
+### Chức năng và phạm vi
 
-### 🚀 Hướng dẫn sử dụng
+- **Nhận diện:** OpenVINO inference, lọc lớp person, confidence và bounding box.
+- **Bám mục tiêu:** GMC, tracker trong repo theo cách tiếp cận ByteTrack, khóa người được chọn và so khớp ngoại hình HSV.
+- **Điều khiển yaw:** vùng chết, giới hạn tốc độ/gia tốc góc, ramp và feed-forward tùy chọn.
+- **Giao diện web:** MJPEG, token xác thực, chọn người và giữ nút ENGAGE.
+- **Giám sát:** tuổi dữ liệu, RC dead-man, stick override, hàng rào mềm, watchdog, đối chiếu yaw và EKF reset.
+- **Companion:** tìm Pixhawk USB, đọc/ghi telemetry, kiểm tra log/parameter, shadow mode và bài yaw SITL có điều kiện cho phép.
+- **Mô phỏng:** mesh CAD, camera optical-flow, rangefinder và các cảm biến phục vụ PX4 Gazebo bridge.
 
-- **Detect:** `cd Detect && pip install -r requirements.txt`, chạy khô bằng `python -m follow.app --camera 0 --model yolo26n_int8_openvino_model`, chạy test bằng `python -m pytest tests/ -v`. Thư mục model OpenVINO không kèm theo repo, cần tự export bằng Ultralytics. Chi tiết tham số, lệnh bay thật và các cột CSV cần soi: [`Detect/README.md`](Detect/README.md).
-- **Companion:** trên UP 7000 chạy `bash deploy/install_up7000.sh`, sau đó `s500-companion discover` và `s500-companion probe --duration 10`. Điều khiển trên Pixhawk thật bị khóa mặc định; trình tự mở khóa xem [`Companion/README.md`](Companion/README.md).
-- **Mô phỏng:** trong WSL chạy `bash Simulation/gazebo/run_s500_gazebo_wsl.sh` và `bash Simulation/gazebo/run_s500_px4_sitl_wsl.sh` ở hai terminal. Home đặt tại **Trường Đại học Bách khoa – ĐHQG TP.HCM, 268 Lý Thường Kiệt, Quận 10, TP.HCM** (`10.772100, 106.657900`). Cách nối QGroundControl: [`Simulation/gazebo/README.md`](Simulation/gazebo/README.md).
+Detect và Companion là **hai phần triển khai riêng**. Detect gửi MAVLink trực tiếp tới PX4. Companion nhận vision packet qua UDP nội bộ; muốn ghép detector vào giao diện này cần adapter theo hợp đồng packet.
 
-### 🛡️ Trước khi bay thật
+Phần cứng được ghi trong tài liệu: S500, Pixhawk 6C/PX4 v1.17, UP 7000 4 GB/32 GB, Rapoo C280, SunnySky X2216 950 kV, FlySky FS-i6/FS-iA6B, PM07, pin Ovonic 4S 6200 mAh và MTF-01. Gazebo dùng khối lượng ước tính 1,68 kg cùng giả định DJI 9450/940 kV; cần hiệu chỉnh theo phần cứng trước khi đánh giá đặc tính bay.
 
-1. Unit test đạt trên đúng máy UP 7000.
-2. Có log các test lỗi trên SITL (kill process, mất stream, mục tiêu cũ, RC dead-man).
-3. Bench trên Pixhawk thật đã **tháo cánh**: xác nhận Position / RTL / RC override / geofence.
-4. Đã cấu hình Offboard-loss (`COM_OF_LOSS_T`), geofence cứng (`GF_*`) và công tắc Position/RTL trên RC. Ba lớp này nằm ngoài code và là bắt buộc.
-5. Chuyến đầu: `--max-yaw-rate 15`, hàng rào nhỏ, `--max-engage-s` ngắn.
+### 1. Chạy xử lý ảnh, chưa điều khiển
+
+Dùng Linux/WSL, Python 3.10+ và camera truy cập được từ môi trường chạy Python:
+
+```bash
+git clone https://github.com/TuanLinh05/S500-Vision-Follow-Drone.git
+cd S500-Vision-Follow-Drone/Detect
+
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+**Model chưa được kèm theo repo.** Tự export model OpenVINO tương thích và truyền đường dẫn `.xml` hoặc thư mục export vào `--model`. Cần `.xml` cùng weights `.bin`, output NMS-free `[batch, N, 6]` theo thứ tự `[x1, y1, x2, y2, confidence, class_id]`, lớp person ID `0` và input khớp `--imgsz` (mặc định `416`).
+
+Thư mục mặc định `yolo26n_int8_openvino_model` không có sẵn. Đổi tên thư mục không sửa được output sai dạng. `requirements.txt` chưa cài bộ export Ultralytics hoặc dependency hiệu chỉnh INT8. Khi model đã nằm trong `Detect/`, chạy:
+
+```bash
+python -m follow.app \
+  --camera 0 \
+  --model yolo26n_int8_openvino_model \
+  --device CPU \
+  --imgsz 416
+```
+
+Lệnh chưa mở MAVLink và chưa bật điều khiển bay. Mở URL có token được in trong terminal, thường là `http://127.0.0.1:8080/?t=<token>`, để xem hình và chọn người. Lệnh dùng CPU cho lần kiểm tra đầu; ứng dụng mặc định dùng GPU.
+
+Kiểm tra chiều ảnh và chiều yaw trước khi thử điều khiển. `--cam-rot` nhận `0/90/180/270`; kiểm tra lại `--hfov` hoặc dùng `--fx-px` đã hiệu chuẩn. Xem [README Detect](Detect/README.md) để biết đầy đủ tham số và cột log.
+
+### 2. Đọc telemetry bằng Companion
+
+Môi trường triển khai được ghi là UP 7000 với Ubuntu 22.04/Python 3.10+. Từ thư mục gốc repo:
+
+```bash
+cd Companion
+bash deploy/install_up7000.sh
+source .venv/bin/activate
+
+s500-companion discover
+s500-companion probe --duration 10
+```
+
+`probe` chỉ đọc MAVLink, không gửi lệnh arm, mode hoặc setpoint. Xem [README Companion](Companion/README.md) nếu cần quyền USB qua nhóm `dialout`.
+
+Mặc định phần cứng có `connection="auto"`, `control_enabled=false`, `allow_serial_control=false` và `ai_enable_rc_channel=0`. Các cờ này chỉ áp dụng cho Companion, không cấu hình Detect.
+
+Chạy supervisor ở shadow mode, không tạo transport điều khiển:
+
+```bash
+python tools/shadow_run.py --duration 600 --output logs/shadow.jsonl
+```
+
+Vision receiver dùng `127.0.0.1:5800`. Nếu chưa có nguồn packet tương thích, log sẽ báo thiếu/cũ dữ liệu vision; đây chưa phải pipeline nhận diện tích hợp hoàn chỉnh.
+
+### 3. Chạy Gazebo và PX4 SITL
+
+Cần cài Gazebo Harmonic (`gz`) và build PX4 riêng bằng `make px4_sitl` trong checkout đặt trên filesystem Linux. Script cần binary `build/px4_sitl_default/bin/px4` và plugin `libOpticalFlowSystem.so`. Mặc định tìm `$HOME/PX4-Autopilot`; đổi `PX4_AUTOPILOT_HOME` khi dùng đường dẫn khác.
+
+Từ thư mục gốc S500, mở **hai terminal**:
+
+```bash
+# Terminal 1
+export PX4_AUTOPILOT_HOME="$HOME/PX4-Autopilot"
+bash Simulation/gazebo/run_s500_gazebo_wsl.sh
+```
+
+```bash
+# Terminal 2
+export PX4_AUTOPILOT_HOME="$HOME/PX4-Autopilot"
+bash Simulation/gazebo/run_s500_px4_sitl_wsl.sh
+```
+
+World `s500_empty`, model `s500_quad_x`, airframe `4001`; script khởi động không tự arm. Tọa độ gốc world là `10.772100, 106.657900`, cao độ `10 m`.
+
+Renderer mặc định là OGRE1 theo cấu hình WSLg trong repo. QGroundControl Windows trên WSL2 NAT dùng UDP local `14550`, server `<WSL-IP>:18570`. Xem [README mô phỏng](Simulation/gazebo/README.md) để kiểm tra môi trường và giả định vật lý.
+
+Để Detect đọc SITL mà chưa bật output điều khiển, chạy trong `Detect/` sau khi chuẩn bị model và môi trường:
+
+```bash
+python -m follow.app \
+  --model yolo26n_int8_openvino_model \
+  --device CPU \
+  --mavlink udp:127.0.0.1:14540
+```
+
+PX4 và Python cần cùng môi trường mạng hoặc có định tuyến UDP phù hợp. Không mở đồng thời hai ứng dụng trên cùng cổng UDP nhận dữ liệu hoặc cùng thiết bị serial.
+
+### Kiểm thử và bật điều khiển
+
+Sau khi cài dependency, chạy trong đúng thư mục và môi trường Python:
+
+```bash
+# Trong Detect/
+python -m pytest tests/ -v
+
+# Trong Companion/
+python -m unittest discover -s tests -v
+```
+
+Bộ test có mất mục tiêu, dữ liệu cũ, giới hạn yaw, hàng rào, watchdog, đồng ý của người vận hành và khóa điều khiển. Cần chạy trên đúng checkout và lưu kết quả.
+
+Detect cần `--enable-control`, kênh RC dead-man phù hợp, `--batt-min` dương, telemetry hợp lệ, mục tiêu đã chọn và người vận hành ENGAGE. Không mặc định chọn CH7: kênh này phải độc lập với các chức năng `RC_MAP_*` của PX4. Các cờ bỏ qua kiểm tra có nhãn SITL/bench chỉ dành cho những môi trường đó.
+
+Mất mục tiêu hoặc chưa xác nhận danh tính sẽ chặn yaw. Mất RC dead-man, stick override, vượt hàng rào hoặc lỗi nghiêm trọng sẽ ngắt theo hành vi đã cấu hình. Watchdog có thể cắt stream khi main loop treo. Phát hiện EKF reset phụ thuộc `ODOMETRY` thực sự nhận được; PX4 phải được cấu hình riêng để xử lý mất Offboard.
+
+Trước thử nghiệm phần cứng, theo trình tự trong [README Companion](Companion/README.md): ghi USB chỉ đọc, test phần mềm, test lỗi SITL, thử bàn khi tháo cánh, shadow flight và review trước khi mở yaw control. Kiểm tra riêng Offboard-loss, geofence cứng và công tắc Position/RTL trên RC. Review file parameter trước khi nạp lên drone.
+
+### Tra cứu nhanh
+
+| Vấn đề | Hướng kiểm tra |
+|---|---|
+| Không tìm thấy `.xml` | Export model và sửa `--model` |
+| Output model sai dạng | Kiểm tra NMS-free `[batch, N, 6]` và kích thước input |
+| Không có GPU | Chạy `--device CPU`, sau đó cấu hình runtime GPU riêng |
+| Camera không mở / ảnh lộn | Kiểm tra quyền, Linux/WSL, index và `--cam-rot` |
+| Không có heartbeat | Kiểm tra PX4, endpoint và tiến trình chiếm cổng/serial |
+| ENGAGE bị chặn | Xem web/CSV `block`, RC mapping, ngưỡng pin và tuổi telemetry |
+| Gazebo không chạy | Kiểm tra `gz`, đường dẫn PX4, plugin optical-flow và renderer |
+
+Tài liệu bổ sung: [kế hoạch điều khiển](Plan/DroneFollowPX4.md), [kế hoạch xử lý ảnh](Plan/ke_hoach_trien_khai_xu_ly_anh_s500.md) và [yêu cầu benchmark](Plan/yeu_cau_benchmark_detect_nguoi_up7000.md).
+
+Mesh S500 được export từ **CAD của bên thứ ba**, source CAD gốc không được kèm trong repo. Script kiểm tra/export dùng đường dẫn máy tác giả `/mnt/d/Intern_Data/S500 Drone`; muốn dựng lại cần sửa đường dẫn, có source gốc và CadQuery. Có thể dùng mesh STL đã commit mà không cần export lại.
 
 ---
 
-<p align="center">Made by <a href="https://github.com/TuanLinh05">Vu Tuan Linh</a> · HCMUT</p>
+Maintained by [Vu Tuan Linh / TuanLinh05](https://github.com/TuanLinh05) · HCMUT.
